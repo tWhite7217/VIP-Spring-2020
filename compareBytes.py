@@ -30,7 +30,7 @@ for i in range(min(exLength, acLength)):
         #should equal 1
         byte = sum/8
         #beacause of parity bit, if sum is odd, an error is detected
-        errorDetected = sum % 2 == 1
+        errorDetected = sum % 2 == 0
         if errorDetected:
             detected += 1
         sum = 0
