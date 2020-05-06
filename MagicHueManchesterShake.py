@@ -38,7 +38,7 @@ for byte in b:
     for i in range(8):
         sum += ((byte >> (7-i)) & 1)
     #if the sum is odd, make parity bit 1
-    if sum % 2 == 1:
+    if sum % 2 == 0:
         byte |= 0b10000000
     #add every bit to the bits array
     for i in range(8):

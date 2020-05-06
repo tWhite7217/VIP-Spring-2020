@@ -27,16 +27,16 @@ time.sleep(0.1)
 f = open ("HiddenMessage.txt", "rb")
 message = f.read()
 b = bytearray(message)
-manchester = [1,1,0,0,1,1,0,0,1,1]
+manchester = [1,1,0,0,1,1,0,0,1,1] # Handshake
 
 for byte in b:
     for i in range(8):
         bit = (byte >> (7-i)) & 1
         print(bit)
         if bit == 1:
-            manchester += [0, 1]
+            manchester += [0, 1] # Logic 1: upward transition 0 to 1
         else:
-            manchester += [1, 0]
+            manchester += [1, 0] # Logic 0: downward transition 1 to 0
 
 for bit in manchester:
     if bit == 1:
