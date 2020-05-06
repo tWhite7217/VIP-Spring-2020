@@ -12,6 +12,7 @@
 #define SYS_CLOCK 16000000            //Frequecny of the system clock
 #define PRESCALER 64                  //System clock prescaler
 #define SECONDS_TO_EXIT_HANDSHAKE 1 //Number of seconds without transition to exit handshake
+#define PARITY_LEN 2        //The number of bytes per parity bit
 
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_2_4MS, TCS34725_GAIN_4X);
@@ -257,8 +258,8 @@ ISR(TIMER1_COMPA_vect) {
             continuous0s = 0;
           }
         }
-        //Every 16th transmitted bit (8 bits of data), sync mode is entered
-        bits = (bits + 1) % 16;
+        //Every PARITY_LEN*2*7 + 1 transmitted bits (+1 for parity bit), sync mode is entered
+        bits = (bits + 1) % (PARITY_LEN*2*7 + 1);
         if (bits == 0) {
           mode = SYNC_STOP;
         }

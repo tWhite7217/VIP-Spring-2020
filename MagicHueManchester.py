@@ -9,7 +9,7 @@ CLK = False         # CLK source
 RGB = (0, 10, 10)
 man = False  # manchester encoding value for bulb
 
-light = magichue.Light('192.168.1.200', confirm_receive_on_send=False, allow_fading=False)
+light = magichue.Light('192.168.1.227', confirm_receive_on_send=False, allow_fading=False)
 
 time.sleep(0.1)
 
