@@ -8,6 +8,7 @@
 #define bluepin 6
 #define MINIMUM 24          //On/Off threshold for added RGBC values
 #define HANDSHAKE_LEN 10    //The number of bits used in handshake
+#define PARITY_LEN 2        //The number of bytes per parity bit
 #define FREQ 150            //Desired frequency of sensor -- Must be <= 150?
 #define SYS_CLOCK 16000000  //Frequecny of the system clock
 #define PRESCALER 64        //System clock prescaler
@@ -208,8 +209,8 @@ ISR(TIMER1_COMPA_vect) {
             continuous0s = 0;
           }
         }
-        //Every 16th transmitted bit (8 bits of data), sync mode is entered
-        bits = (bits + 1) % 16;
+        //Every PARITY_LEN*2*7 + 1 transmitted bits (+1 for parity bit), sync mode is entered
+        bits = (bits + 1) % (PARITY_LEN*2*7 + 1);
         if (bits == 0) {
           mode = SYNC_STOP;
         }
