@@ -11,9 +11,9 @@
 #define FREQ 150                      //Desired frequency of sensor -- Must be <= 150?
 #define SYS_CLOCK 16000000            //Frequecny of the system clock
 #define PRESCALER 64                  //System clock prescaler
-#define SECONDS_TO_EXIT_HANDSHAKE 1 //Number of seconds without transition to exit handshake
-#define PARITY_LEN 2        //The number of bytes per parity bit
-
+#define SECONDS_TO_EXIT_HANDSHAKE 1   //Number of seconds without transition to exit handshake
+#define PARITY_LEN 1                  //The number of bytes per parity bit
+#define PARITY_MODE true
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_2_4MS, TCS34725_GAIN_4X);
 
@@ -42,7 +42,7 @@ int continuous0s = 0;       //used to check if transmission has stopped
 int continuous1s = 0;       //used to check if transmission has stopped
 int lastSum = 0;            //handshakeSum last time the bulb changed 
 int sync;                   //a count of interrupts stop bit occurred
-int onOrOff;
+int onOrOff;                //Whether bulb was on or off when handshake started
 uint16_t red, green, blue, clear;
 //What the prescaled timer1 has to count to for an interrupt to occur
 int comp_reg = SYS_CLOCK/((uint16_t)PRESCALER * (uint16_t)FREQ) - 1;
@@ -258,8 +258,12 @@ ISR(TIMER1_COMPA_vect) {
             continuous0s = 0;
           }
         }
-        //Every PARITY_LEN*2*7 + 1 transmitted bits (+1 for parity bit), sync mode is entered
-        bits = (bits + 1) % (PARITY_LEN*2*7 + 1);
+        if (PARITY_MODE) {
+          bits = (bits + 1) % 8;
+        } else {
+          //Every PARITY_LEN*2*7 + 1 transmitted bits (+1 for parity bit), sync mode is entered
+          bits = (bits + 1) % (PARITY_LEN*2*7 + 1);
+        }
         if (bits == 0) {
           mode = SYNC_STOP;
         }
