@@ -6,28 +6,30 @@
 #define redpin 3
 #define greenpin 5
 #define bluepin 6
-#define MINIMUM 24          //On/Off threshold for added RGBC values
-#define HANDSHAKE_LEN 10    //The number of bits used in handshake
-#define FREQ 150            //Desired frequency of sensor -- Must be <= 150?
-#define SYS_CLOCK 16000000  //Frequecny of the system clock
-#define PRESCALER 64        //System clock prescaler
+#define MINIMUM 24                    //On/Off threshold for added RGBC values
+#define HANDSHAKE_LEN 10              //The number of bits used in handshake
+#define FREQ 150                      //Desired frequency of sensor -- Must be <= 150?
+#define SYS_CLOCK 16000000            //Frequecny of the system clock
+#define PRESCALER 64                  //System clock prescaler
+#define SECONDS_TO_EXIT_HANDSHAKE 1 //Number of seconds without transition to exit handshake
 
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_2_4MS, TCS34725_GAIN_4X);
 
 //Enum describes the different modes the sensor can be in
 enum mode {
-  OFF,
-  HANDSHAKE,
-  SYNC_STOP,
-  SYNC_START,
-  MESSAGE
+  OFF,          //Bubl is off, waiting for handshake
+  ON,           //Bulb is on, waiting for handshake
+  HANDSHAKE,    //Handshake is happening
+  SYNC_STOP,    //Start bit (used to account for desynced clocks)
+  SYNC_START,   //Stop bit  (used to account for desynced clocks)
+  MESSAGE       //Message is being transmitted
 };
 int mode = OFF;
 
 //global variables
-int ind = 0;                //samples since last bit
-int arr_size;               //samples per bit
+int samplesSinceLastBit = 0;//samples since last bit
+int samplesPerBit;          //samples per bit
 int sum = 0;                //sum of the samples
 int colorSum = 0;           //sum of the color values
 float handshakeSum = 0;     //sum of interrupts since handshake started
@@ -38,11 +40,8 @@ int manchester[2];          //array used to determine transition for manchester 
 int continuous0s = 0;       //used to check if transmission has stopped
 int continuous1s = 0;       //used to check if transmission has stopped
 int lastSum = 0;            //handshakeSum last time the bulb changed 
-boolean started = false;    //true if handshake is over and not in start or stop bit state
-boolean handshake = false;  //true if in handshake
-boolean syncStart = false;  //true during start bit (used to account for desynced clocks)
-boolean syncStop = false;   //true during stop bit  (used to account for desynced clocks)
 int sync;                   //a count of interrupts stop bit occurred
+int onOrOff;
 uint16_t red, green, blue, clear;
 //What the prescaled timer1 has to count to for an interrupt to occur
 int comp_reg = SYS_CLOCK/((uint16_t)PRESCALER * (uint16_t)FREQ) - 1;
@@ -98,27 +97,76 @@ void setup() {
   
 }
 
+/*
+ * Setup for entering handshake mode after waiting.
+ * onOrOff is 0 if handshake begun with light turning on,
+ *            1 if handshake begun with light turning off
+ */
+void enterHandshake(){
+  //Reset HANDSHAKE variables
+  mode = HANDSHAKE;
+  handshakeSwitch = !onOrOff;
+  handshakeSum = 0;
+  handshakeStage = onOrOff;
+  lastSum = 0;
+
+  //Reset MESSAGE variables
+  sum = 0;
+  continuous0s = 0;
+  continuous1s = 0;
+  samplesSinceLastBit = 0;
+  manchBit = 0;
+  bits = 0;
+}
+
+/*
+ * Increments the state of the handshake.
+ * If handshakeStage is greater than HANDSHAKE_LEN,
+ * the handshake is over and we enter SYNC_STOP mode.
+ * Called when lightbulb changes state during handshake.
+ */
+void incrementHandshake() {
+  handshakeStage++;
+  handshakeSwitch = !handshakeSwitch;
+  lastSum = handshakeSum;
+  if (handshakeStage >= HANDSHAKE_LEN) {
+    samplesPerBit = (int) round(handshakeSum / ((HANDSHAKE_LEN - onOrOff)*2) + 0.2);
+    thresh = (int) round(((float)samplesPerBit) / 2);
+    Serial.println(handshakeSum);
+    Serial.println(samplesPerBit);
+    mode = SYNC_STOP;
+    sync = 0;
+  }
+}
+
 //Timer1 interrupt, set to FREQ
 ISR(TIMER1_COMPA_vect) {
   switch(mode) {
     //Off Mode. The sensor waits for the handshake to occur.
-    //Handshake mode is entered when the bulb first changes state.
+    //Handshake mode is entered when the bulb first turns on.
     case OFF:
       if (colorSum >= MINIMUM) {
-        mode = HANDSHAKE;
+        onOrOff = 0;
+        enterHandshake();
+      }
+      break;
+    //On Mode. The sensor waits for the handshake to occur.
+    //Handshake mode is entered when the bulb first turns off.
+    case ON:
+      if (colorSum < MINIMUM) {
+        onOrOff = 1;
+        enterHandshake();
       }
       break;
     //Handshake mode. Used to determine the correct samples/bit
     case HANDSHAKE:
       //The bulb is on. When it turns off, we increase handshakeStage
       //changing handshakeSwitch
-      if (handshakeSwitch == 0) {
+      if (handshakeSwitch == 1) {
         //We also check that handshakeSum has incremented enough
         //since handshakeSwitch changed to avoid immediate switches
         if (colorSum < MINIMUM && handshakeSum > lastSum + 3) {
-          handshakeStage++;
-          handshakeSwitch = handshakeStage % 2;
-          lastSum = handshakeSum;
+          incrementHandshake();
         }
       }
       //The bulb is off. When it turns on, we increase handshakeStage,
@@ -127,20 +175,19 @@ ISR(TIMER1_COMPA_vect) {
       //over and we enter Stop bit mode.
       else {
         if (colorSum >= MINIMUM && handshakeSum > lastSum + 3) {
-          handshakeStage++;
-          handshakeSwitch = handshakeStage % 2;
-          lastSum = handshakeSum;
-          if (handshakeStage >= HANDSHAKE_LEN) {
-            arr_size = (int) round(handshakeSum / (HANDSHAKE_LEN*2) + 0.2);
-            thresh = (int) round(((float)arr_size) / 2);
-            Serial.println(handshakeSum);
-            Serial.println(arr_size);
-            mode = SYNC_STOP;
-          }
+          incrementHandshake();
         }
       }
       //handshakeSum is incremented every interrupt in handshake mode
       handshakeSum++;
+      //If the bulb has not changed state in the time specified by
+      //SECONDS_TO_EXIT_HANDSHAKE, the bulb returns to waiting for
+      //a handshake by entering either ON or OFF mode (based on
+      //current state of the bulb, handshakeSwitch)
+      if (handshakeSum - lastSum > FREQ * SECONDS_TO_EXIT_HANDSHAKE) {
+        mode = handshakeSwitch;
+        Serial.println("Handshake exited.");
+      }
       break;
     //Stop bit. Move on to start bit once light is turned off
     //and sync is greater than half the determined samples/bit.
@@ -149,16 +196,18 @@ ISR(TIMER1_COMPA_vect) {
     //and the stop bit has not yet appeared
     case SYNC_STOP:
       sync++;
-      if (colorSum < MINIMUM && sync > arr_size/2) {
+      if (colorSum < MINIMUM && sync > samplesPerBit/2) {
         mode = SYNC_START;
         sync = 0;
+      } else if (sync > samplesPerBit * 5) {
+        mode = ON;
       }
       break;
     //Start bit. We are resynced once we enter this mode,
     //so we wait for the determined number of samples/bit
     //and then move back to started mode.
     case SYNC_START:
-      sync = (sync+1) % arr_size;
+      sync = (sync+1) % samplesPerBit;
       if (sync == 0){
         mode = MESSAGE;
       }
@@ -169,8 +218,8 @@ ISR(TIMER1_COMPA_vect) {
       }
       //When the determined number of samples/bit have been taken,
       //the bit is considered a 1 if sum is greater than thresh, 0 otherwise
-      ind = (ind + 1) % arr_size;
-      if (ind == 0) {
+      samplesSinceLastBit = (samplesSinceLastBit + 1) % samplesPerBit;
+      if (samplesSinceLastBit == 0) {
         //The value of the bit is added to the manchester array
         if (sum >= thresh) {
           manchester[manchBit] = 1;
@@ -194,7 +243,7 @@ ISR(TIMER1_COMPA_vect) {
           } else if (manchester[0] == 0 && manchester[1] == 0) {
             Serial.println("0");
             continuous0s++;
-            if (continuous0s >=3) {
+            if (continuous0s >=6) {
               mode = OFF;
             }
             continuous1s = 0;
@@ -202,8 +251,8 @@ ISR(TIMER1_COMPA_vect) {
           } else {
             Serial.println("1");
             continuous1s++;
-            if (continuous1s >=3) {
-              mode = OFF;
+            if (continuous1s >= 6) {
+              mode = ON;
             }
             continuous0s = 0;
           }
