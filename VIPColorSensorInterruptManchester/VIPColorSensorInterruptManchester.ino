@@ -262,7 +262,7 @@ ISR(TIMER1_COMPA_vect) {
           bits = (bits + 1) % 8;
         } else {
           //Every PARITY_LEN*2*7 + 1 transmitted bits (+1 for parity bit), sync mode is entered
-          bits = (bits + 1) % (PARITY_LEN*2*7 + 1);
+          bits = (bits + 1) % (PARITY_LEN*7 + 1);
         }
         if (bits == 0) {
           mode = SYNC_STOP;
