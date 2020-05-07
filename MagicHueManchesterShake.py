@@ -1,19 +1,19 @@
 import time
 import magichue
 
-FREQ = 15
+FREQ = 5
 
 T = 1/FREQ
 
 HANDSHAKE_LEN = 10
 PARITY_LEN = 2      # number of bytes associated with a parity bit
-PARITY_MODE = True  # True if parity is for every byte and is MSB
+PARITY_MODE = False  # True if parity is for every byte and is MSB
                     # False if parity is for PARITY_LEN bytes and is LSB
 
 RGB = (0, 10, 10)
 
 # change IP address for bulb
-light = magichue.Light('192.168.1.200', confirm_receive_on_send=False, allow_fading=False)
+light = magichue.Light('192.168.1.227', confirm_receive_on_send=False, allow_fading=False)
 
 initialState = light.on
 
@@ -37,9 +37,9 @@ b = bytearray(message)
 if PARITY_MODE:
     # generate handshake at beginning of bits array
     if initialState:
-        bits = [0,0,1,1]*(HANDSHAKE_LEN//2 - 1) + [0,0,1,0]
+        bits = [0, 0, 1, 1]*(HANDSHAKE_LEN//2 - 1) + [0, 0, 1, 0]
     else:
-        bits = [1,1,0,0]*(HANDSHAKE_LEN//2) + [1,0]
+        bits = [1, 1, 0, 0]*(HANDSHAKE_LEN//2) + [1, 0]
     sum = 0
 
     for byte in b:
@@ -63,7 +63,7 @@ if PARITY_MODE:
 
 else:
     # generate handshake at beginning of bits array
-    bits = [1,1,0,0]*(HANDSHAKE_LEN//2) + [1,0]
+    bits = [1, 1, 0, 0]*(HANDSHAKE_LEN//2) + [1, 0]
     sum = 0         # running sum of bits per parity set
     parity_count = 0    # the byte of data we are on in the parity set
 
@@ -91,12 +91,12 @@ else:
             # Compute parity bit- if the sum is even, make the parity bit 1
             if sum % 2 == 0:
                 print(1)
-                bits += [0,1]
+                bits += [0, 1]
             else:
                 print(0)
-                bits += [1,0]
+                bits += [1, 0]
             # add stop and start signals between every PARITY_LEN bytes (PARITY_LEN*2 transmitted bits)
-            bits += [1,0]
+            bits += [1, 0]
 
 # send message over bulb
 for bit in bits:

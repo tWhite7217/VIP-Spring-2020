@@ -133,7 +133,9 @@ void incrementHandshake() {
   if (handshakeStage >= HANDSHAKE_LEN) {
     samplesPerBit = (int) round(handshakeSum / ((HANDSHAKE_LEN - onOrOff)*2) + 0.2);
     thresh = (int) round(((float)samplesPerBit) / 2);
+    Serial.print("handhshakeSum: ");
     Serial.println(handshakeSum);
+    Serial.print("samplesPerBit: ");
     Serial.println(samplesPerBit);
     mode = SYNC_STOP;
     sync = 0;
