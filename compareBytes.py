@@ -48,9 +48,12 @@ for i in range(min(exLength, acLength)):
                 totalCorrect += 1
     else:
         # every PARITY_LEN*7 +1 bits:
-        if (i + 1) % (PARITY_LEN*7 + 1) == 0:
+        if (i + 1) % (PARITY_LEN*7 + 1) == 0 or i == min(exLength, acLength) - 1:
             # set variable should equal 1, meaning all results in the set are correct
-            set = sum/(PARITY_LEN*7 + 1)
+            if (i + 1) % (PARITY_LEN*7 + 1) == 0:
+                set = sum/(PARITY_LEN*7 + 1)
+            else:
+                set = sum / (exLength % (PARITY_LEN*7 + 1))
             # beacause of parity bit, if sum is even, an error is detected
             errorDetected = bitSum % 2 == 0
             if errorDetected:
@@ -63,8 +66,10 @@ for i in range(min(exLength, acLength)):
                 totalCorrect += 1
 
 print('detected: ' + str(detected))
-print('incorrect: ' + str((exLength/8) - totalCorrect))
 if PARITY_MODE:
+    print('incorrect: ' + str((exLength/8) - totalCorrect))
     print('bytes correct: ' + str(totalCorrect/(exLength/8)))
 else:
-    print('sets correct: ' + str(totalCorrect / (exLength / (PARITY_LEN*7 + 1))))
+    numSets = round(exLength/(PARITY_LEN*7 + 1) + 0.49)
+    print('incorrect: ' + str(numSets - totalCorrect))
+    print('sets correct: ' + str(totalCorrect / numSets))
