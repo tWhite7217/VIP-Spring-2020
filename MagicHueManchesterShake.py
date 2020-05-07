@@ -7,8 +7,8 @@ T = 1/FREQ
 
 HANDSHAKE_LEN = 10
 PARITY_LEN = 2      # number of bytes associated with a parity bit
-PARITY_MODE = True  #True if parity is for every byte and is MSB
-                    #False if parity is for PARITY_LEN bytes and is LSB
+PARITY_MODE = True  # True if parity is for every byte and is MSB
+                    # False if parity is for PARITY_LEN bytes and is LSB
 
 RGB = (0, 10, 10)
 
@@ -30,12 +30,12 @@ if light.rgb != RGB:
 time.sleep(0.1)
 
 # read message as binary and make an array of the bytes
-f = open ("HiddenMessage.txt", "rb")
+f = open("HiddenMessage.txt", "rb")
 message = f.read()
 b = bytearray(message)
 
-if (PARITY_MODE):
-    #generate handshake at beginning of bits array
+if PARITY_MODE:
+    # generate handshake at beginning of bits array
     if initialState:
         bits = [0,0,1,1]*(HANDSHAKE_LEN//2 - 1) + [0,0,1,0]
     else:
@@ -43,7 +43,7 @@ if (PARITY_MODE):
     sum = 0
 
     for byte in b:
-        #add sum of bits in byte
+        # add sum of bits in byte
         byte &= 0b01111111
         for i in range(8):
             sum += ((byte >> (7-i)) & 1)
@@ -90,8 +90,10 @@ else:
         if parity_count == 0:
             # Compute parity bit- if the sum is even, make the parity bit 1
             if sum % 2 == 0:
+                print(1)
                 bits += [0,1]
             else:
+                print(0)
                 bits += [1,0]
             # add stop and start signals between every PARITY_LEN bytes (PARITY_LEN*2 transmitted bits)
             bits += [1,0]
