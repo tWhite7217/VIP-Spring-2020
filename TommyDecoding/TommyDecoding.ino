@@ -7,19 +7,17 @@
 #define greenpin 5
 #define bluepin 6
 #define MINIMUM 24                    //On/Off threshold for added RGBC values
-#define HANDSHAKE_LEN 10               //The number of bits used in handshake
+#define HANDSHAKE_LEN 10              //The number of bits used in handshake
 #define FREQ 150                      //Desired frequency of sensor -- Must be <= 150?
 #define SYS_CLOCK 16000000            //Frequecny of the system clock
 #define PRESCALER 64                  //System clock prescaler
 #define SECONDS_TO_EXIT_HANDSHAKE 1   //Number of seconds without transition to exit handshake
-#define PARITY_LEN 2                  //The number of bytes per parity bit
-#define PARITY_MODE false
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_2_4MS, TCS34725_GAIN_4X);
 
 //Enum describes the different modes the sensor can be in
 enum mode {
-  OFF,          //Bubl is off, waiting for handshake
+  OFF,          //Bulb is off, waiting for handshake
   ON,           //Bulb is on, waiting for handshake
   HANDSHAKE,    //Handshake is happening
   SYNC_STOP,    //Start bit (used to account for desynced clocks)
@@ -36,10 +34,11 @@ int colorSum = 0;           //sum of the color values
 float handshakeSum = 0;     //sum of interrupts since handshake started
 int handshakeStage = 0;     //how many times bulb has changed since handshake started
 int bits = 0;               //number of transmitted bits since last sync
-int manchBit = 0;           //index of manchester array
-int manchester[2];          //array used to determine transition for manchester encoding
 int continuous0s = 0;       //used to check if transmission has stopped
 int continuous1s = 0;       //used to check if transmission has stopped
+int continuousThresh = 20;  //number of continuous 0s or 1s need to end transmission
+int bitSetSize = 4;         //number of bits in a set, including parity bit
+int bitSetsPerSync = 4;     //number of bit sets transmitted before synchronization
 int lastSum = 0;            //handshakeSum last time the bulb changed 
 int sync;                   //a count of interrupts stop bit occurred
 int onOrOff;                //Whether bulb was on or off when handshake started
@@ -116,7 +115,6 @@ void enterHandshake(){
   continuous0s = 0;
   continuous1s = 0;
   samplesSinceLastBit = 0;
-  manchBit = 0;
   bits = 0;
 }
 
@@ -225,47 +223,21 @@ ISR(TIMER1_COMPA_vect) {
       if (samplesSinceLastBit == 0) {
         //The value of the bit is added to the manchester array
         if (sum >= thresh) {
-          manchester[manchBit] = 1;
-        } else {
-          manchester[manchBit] = 0;
-        }
-        //When the array is full, we determine the data of the past two bits
-        manchBit = (manchBit + 1) % 2;
-        if (manchBit == 0) {
-          //The data is 1 if we transitioned from 0 to 1
-          if (manchester[0] == 0 && manchester[1] == 1) {
-            Serial.println("1");
-            continuous0s = 0;
-            continuous1s = 0;
-          //The data is 0 if we transitioned from 1 to 0
-          } else if (manchester[0] == 1 && manchester[1] == 0) {
-            Serial.println("0");
-            continuous0s = 0;
-            continuous1s = 0;
-          //When we stay low, we guess 0 and check if transmission has stopped
-          } else if (manchester[0] == 0 && manchester[1] == 0) {
-            Serial.println("0");
-            continuous0s++;
-            if (continuous0s >=6) {
-              mode = OFF;
-            }
-            continuous1s = 0;
-          //When we stay high, we guess 1
-          } else {
-            Serial.println("1");
-            continuous1s++;
-            if (continuous1s >= 6) {
-              mode = ON;
-            }
-            continuous0s = 0;
+          Serial.println("1");
+          continuous1s++;
+          if (continuous1s >= continuousThresh) {
+            mode = ON;
           }
-        }
-        if (PARITY_MODE) {
-          bits = (bits + 1) % 16;
+          continuous0s = 0;
         } else {
-          //Every PARITY_LEN*2*7 + 1 transmitted bits (+1 for parity bit), sync mode is entered
-          bits = (bits + 1) % ((PARITY_LEN*7 + 1) * 2);
+          Serial.println("0");
+          continuous0s++;
+          if (continuous0s >= continuousThresh) {
+            mode = OFF;
+          }
+          continuous1s = 0;
         }
+        bits = (bits + 1) % (bitSetSize * bitSetsPerSync);
         if (bits == 0) {
           mode = SYNC_STOP;
         }
