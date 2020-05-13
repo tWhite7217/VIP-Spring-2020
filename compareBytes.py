@@ -1,4 +1,4 @@
-PARITY_LEN = 2      # number of bytes associated with a parity bit
+PARITY_LEN = 1      # number of bytes associated with a parity bit
 PARITY_MODE = False  # True if parity is for every byte and is MSB
                     # False if parity is for PARITY_LEN bytes and is LSB
 print('PARITY MODE: '+ str(PARITY_MODE))
