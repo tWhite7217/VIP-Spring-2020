@@ -1,15 +1,13 @@
 import time
 import magichue
 
-FREQ = 10            # Frequency
+FREQ = 1           # Frequency
 
 T = 1/FREQ          # Period
 t = T/2             # half the period
 CLK = False         # CLK source
 
-GreenVal = 0
-BlueVal = 0
-RedClk = 0
+RGB = (10, 10, 10)
 
 manchester = False  # manchester encoding value for bulb
 
@@ -22,8 +20,8 @@ if light.is_white:
 
 time.sleep(0.1)
 
-#if light.rgb != RGB:
-    #light.rgb = RGB
+if light.rgb != RGB:
+    light.rgb = RGB
 
 time.sleep(0.1)
 
@@ -32,10 +30,9 @@ f = open("HiddenMessage.txt", "rb")
 message = f.read()
 b = bytearray(message)
 
-
 # Synchronous Manchester Encoding
 # Move message contents into array of bits
-bitStream = [False for x in range(len(b)*8)]
+bitStream = [False for x in range(len(b)*8)] # create an array from all bits
 byteCount = 0
 for byte in b:
     for i in range(8):
@@ -59,27 +56,18 @@ while messageStream:  # each time through loop is half a period
     CLK = not CLK  # alternating clock
     bit = bitStream[byteCount * 8 + bitCount]  # find value of bit we are sending
     if CLK:  # when clock is high, we must set up our transition
-        RedClk = 255
         if bit == 1:
             manchester = False
         else:
             manchester = True
     else:  # when clock goes low, we perform transition
-        RedClk = 10
         manchester = not manchester
         if manchester:
-            #print(1)
-            GreenVal = 0
-            BlueVal = 0
+            print(1)
+            light.on = True
         else:
-            #print(0)
-            GreenVal = 0
-            BlueVal = 0
-    light.r = RedClk
-    if manchester:
-        light.g = GreenVal
-        light.b = BlueVal
-    print(CLK)
+            print(0)
+            light.on = False
     time.sleep(t)
     # updating the clock and bit counters
     clkCount = clkCount + 1
