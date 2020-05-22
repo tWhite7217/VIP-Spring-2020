@@ -1,3 +1,5 @@
+from termcolor import colored
+
 #read expected binary
 f = open("ExpectedBinary.txt", "r")
 expected = f.read()
@@ -72,9 +74,17 @@ for letter in letters:
 
 message = message.replace('\r', '')
 
+wrongLetterIndexes = []
+
 for i in range(min(len(message), len(expectedText))):
     if message[i] == expectedText[i]:
         lettersCorrect += 1
+    else:
+        wrongLetterIndexes += [i]
+
+for i in wrongLetterIndexes:
+    message = message[:i] + colored(message[i], 'red') + message[i+1:]
+        
 
 print(message)
 print(expectedText)
