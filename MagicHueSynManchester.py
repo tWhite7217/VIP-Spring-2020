@@ -6,7 +6,9 @@ FREQ = 1           # Frequency
 T = 1/FREQ          # Period
 t = T/2             # half the period
 CLK = False         # CLK source
-
+preambleLength = 64 # preamble will be 8 bytes
+pVal= False         # preamble value
+pCount = 0          # counter for preamble
 RGB = (10, 10, 10)
 
 manchester = False  # manchester encoding value for bulb
@@ -49,6 +51,15 @@ for byte in b:
 byteCount = 0       # keeps track of what byte of data are we on
 bitCount = 0        # keeps track of what bit of the byte are we on (0-7)
 clkCount = 0        # clkCount%2 = 0 means we are on a new period and can move to next bit
+print("Sending preamble...\n")
+# preamble consists of 62 alternating 1's and 0's followd by pattern 11
+for p in range(pVal):
+    pVal = not pVal;
+    if p < (preambleLength - 2):
+        light.on = pVal
+    else:
+        light.on = True
+    time.sleep(t)
 print("Start of Message\n")
 light.on = True
 messageStream = True
